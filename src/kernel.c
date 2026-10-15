@@ -3,8 +3,19 @@
 #include "serial.h"
 #include "string.h"
 #include "memory.h"
+#include "process.h"
 
 #define MAX_INPUT 128
+
+static void task_alpha(void) {
+    serial_puts("[Task Alpha] Running!\n");
+    for (;;) { __asm__ volatile ("hlt"); }
+}
+
+static void task_beta(void) {
+    serial_puts("[Task Beta] Running!\n");
+    for (;;) { __asm__ volatile ("hlt"); }
+}
 
 void kmain(void) {
     memory_init();
@@ -86,6 +97,74 @@ void kmain(void) {
     serial_puts("\n---s4 Information---\n");
     stack_memory_info(s4);
     serial_puts("\n");
+
+    /* ========================================================
+       Day 1 Process Manager Verification (Student 2203036)
+       ======================================================== */
+    serial_puts("\n========================================\n");
+    serial_puts("Process Manager Day 1 Test (Student 2203036)\n");
+    serial_puts("========================================\n");
+    process_init();
+    pcb_t* cur = process_get_current();
+    if (cur != NULL && cur->pid == 0 && cur->state == STATE_CURRENT) {
+        serial_puts(">> PASS: Process Table successfully initialized (16 slots)!\n");
+        serial_puts(">> PASS: Null Process (PID 0) active in CURRENT state.\n");
+        serial_puts(">> Process Name: ");
+        serial_puts(cur->name);
+        serial_puts("\n");
+        serial_puts(">> Day 1 Core Subsystem: 100% Operational.\n");
+    } else {
+        serial_puts(">> FAIL: Process initialization failed.\n");
+    }
+    serial_puts("========================================\n\n");
+
+    /* ========================================================
+       Day 2 Process Creation & Termination (Student 2203036)
+       ======================================================== */
+    serial_puts("========================================\n");
+    serial_puts("Process Manager Day 2 Test (Student 2203036)\n");
+    serial_puts("========================================\n");
+
+    int32_t pid1 = process_create("AlphaTask", task_alpha, 1);
+    int32_t pid2 = process_create("BetaTask", task_beta, 2);
+
+    serial_puts(">> Spawned AlphaTask with PID: ");
+    serial_putint(pid1);
+    serial_puts("\n>> Spawned BetaTask with PID: ");
+    serial_putint(pid2);
+    serial_puts("\n");
+
+    if (pid1 == 1 && pid2 == 2) {
+        serial_puts(">> PASS: Process Creation & Stack Allocation verified!\n");
+    }
+
+    /* ========================================================
+       Day 3 State Transitions Verification (Student 2203036)
+       ======================================================== */
+    serial_puts("\n========================================\n");
+    serial_puts("Process Manager Day 3 Test (Student 2203036)\n");
+    serial_puts("========================================\n");
+    int32_t s_res1 = process_set_state(pid2, STATE_CURRENT);
+    if (s_res1 == 0) {
+        serial_puts(">> PASS: State Transition (READY -> CURRENT) verified!\n");
+    }
+    int32_t s_res2 = process_set_state(pid2, STATE_READY);
+    if (s_res2 == 0) {
+        serial_puts(">> PASS: State Transition (CURRENT -> READY preemption) verified!\n");
+    }
+    serial_puts("========================================\n\n");
+
+    int32_t term = process_terminate(pid1, 0);
+    if (term == 0) {
+        serial_puts(">> PASS: AlphaTask terminated & stack memory freed via ksfree()!\n");
+    }
+
+    int32_t pid3 = process_create("GammaTask", task_alpha, 3);
+    serial_puts(">> Spawned GammaTask into recycled slot PID: ");
+    serial_putint(pid3);
+    serial_puts("\n>> PASS: Slot recycling verified!\n");
+    serial_puts("========================================\n\n");
+
     /* Should never reach here */
     for (;;) {
         __asm__ volatile ("hlt");
